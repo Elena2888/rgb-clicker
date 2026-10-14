@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#050505">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RGB Clicker">
+    <title>RGB Clicker</title>
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='36' fill='%23050505'/%3E%3Crect x='30' y='40' width='120' height='100' rx='20' fill='none' stroke='%2300ffff' stroke-width='6'/%3E%3Crect x='55' y='65' width='70' height='50' rx='12' fill='%23ff00ff' opacity='0.6'/%3E%3Ccircle cx='90' cy='90' r='20' fill='%2300ffff'/%3E%3C/svg%3E">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap');
+        :root { --cyan: #00ffff; --magenta: #ff00ff; --gold: #ffff00; }
+        * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+        html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; touch-action: manipulation; }
+        body {
+            background: #050505 radial-gradient(circle at 50% 0%, #001a1a 0%, #000 70%);
+            color: white; font-family: 'Montserrat', sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            position: fixed; inset: 0;
+        }
+        .cross-bar {
+            width: 100%; padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top));
+            background: rgba(20,20,30,0.85); backdrop-filter: blur(15px);
+            border-bottom: 2px solid var(--cyan); box-shadow: 0 0 25px rgba(0,255,255,0.4);
+            display: flex; justify-content: space-between; align-items: center; z-index: 100; flex-shrink: 0;
+        }
+        .stat-block { display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .stat-label { font-size: 9px; letter-spacing: 2px; color: var(--cyan); text-transform: uppercase; margin-bottom: 3px; font-weight: 700; }
+        .stat-label.pink { color: var(--magenta); }
+        .stat-label.gold { color: var(--gold); }
+        .stat-value { font-size: 26px; font-weight: 900; text-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan); transition: transform 0.1s; font-variant-numeric: tabular-nums; }
+        .stat-value.pink { text-shadow: 0 0 10px var(--magenta), 0 0 20px var(--magenta); }
+        .stat-value.gold { color: var(--gold); text-shadow: 0 0 10px var(--gold), 0 0 20px var(--gold); font-size: 20px; }
+        .stat-value.pop { transform: scale(1.25); color: var(--gold); }
+        .divider { width: 2px; height: 35px; background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.3), transparent); margin: 0 3px; }
+        .sound-panel { width: 100%; max-width: 500px; padding: 8px 12px 6px; z-index: 50; flex-shrink: 0; }
+        .sound-row { display: flex; gap: 6px; margin-bottom: 6px; }
+        .sound-selector { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; flex: 1; }
+        .sound-btn {
+            aspect-ratio: 1; background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.15);
+            border-radius: 8px; color: #666; font-size: 16px; cursor: pointer; transition: all 0.2s;
+            display: flex; justify-content: center; align-items: center; padding: 0;
+        }
+        .sound-btn.active { border-color: var(--cyan); background: rgba(0,255,255,0.15); box-shadow: 0 0 10px rgba(0,255,255,0.5); transform: scale(1.05); }
+        .mute-btn { width: 44px; height: 44px; flex-shrink: 0; background: rgba(255,255,255,0.05); border: 1.5px solid rgba(255,255,255,0.2); border-radius: 10px; color: #fff; font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; padding: 0; }
+        .mute-btn.muted { background: rgba(255,0,85,0.15); border-color: #ff0055; color: #ff0055; }
+        .volume-row { display: flex; align-items: center; gap: 10px; padding: 0 4px; }
+        .volume-icon { font-size: 12px; color: #666; }
+        .volume-slider { flex: 1; -webkit-appearance: none; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; outline: none; }
+        .volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: var(--cyan); border-radius: 50%; box-shadow: 0 0 10px var(--cyan); }
+        .volume-value { font-size: 10px; color: var(--cyan); font-weight: 700; min-width: 28px; text-align: right; }
+        .game-board { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(4, 1fr); gap: 10px; padding: 10px 15px 15px; width: 100%; max-width: 500px; flex: 1; min-height: 0; z-index: 10; }
+        .keycap { background: rgba(255,255,255,0.05); border: 2px solid var(--key-color); border-radius: 15px; box-shadow: 0 0 15px rgba(255,255,255,0.1), inset 0 0 15px rgba(255,255,255,0.05); transition: all 0.08s; position: relative; display: flex; justify-content: center; align-items: center; cursor: pointer; overflow: hidden; touch-action: none; }
+        .keycap::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle, var(--key-color) 0%, transparent 70%); opacity: 0.3; }
+        .keycap.active { transform: scale(0.88); box-shadow: 0 0 35px var(--key-color), inset 0 0 25px var(--key-color); background: rgba(255,255,255,0.2); }
+        .keycap.active::before { opacity: 0.9; }
+        .keycap-inner { width: 40%; height: 40%; border: 2px solid rgba(255,255,255,0.3); border-radius: 50%; box-shadow: inset 0 0 10px rgba(255,255,255,0.2); }
+        .floating-score { position: fixed; font-size: 22px; font-weight: 900; color: #fff; text-shadow: 0 0 10px #fff, 0 0 20px var(--key-color); pointer-events: none; z-index: 1000; animation: flyToTop 0.9s cubic-bezier(0.25,0.46,0.45,0.94) forwards; }
+        @keyframes flyToTop { 0% { transform: translate(-50%,-50%) scale(0.5); opacity: 0; } 20% { transform: translate(calc(-50% + var(--random-x) * 0.3), calc(-50% - 20px)) scale(1.2); opacity: 1; } 100% { transform: translate(calc(-50% + var(--random-x)), -110vh) scale(0.8); opacity: 0; } }
+        .particle { position: fixed; width: 8px; height: 8px; background: var(--key-color); border-radius: 50%; pointer-events: none; z-index: 999; animation: flyOut 0.5s ease-out forwards; }
+        @keyframes flyOut { 0% { transform: translate(-50%,-50%) scale(1); opacity: 1; } 100% { transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(0); opacity: 0; } }
+        .instruction { position: absolute; bottom: calc(4px + env(safe-area-inset-bottom)); font-size: 9px; color: #555; letter-spacing: 2px; text-transform: uppercase; animation: blink 2s infinite; pointer-events: none; }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @media (max-height: 700px) {
+            .stat-value { font-size: 20px; }
+            .stat-value.gold { font-size: 16px; }
+            .game-board { gap: 7px; padding: 8px 12px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="cross-bar">
+    <div class="stat-block"><div class="stat-label">ОЧКИ</div><div class="stat-value" id="scoreDisplay">0</div></div>
+    <div class="divider"></div>
+    <div class="stat-block"><div class="stat-label pink">ВРЕМЯ</div><div class="stat-value pink" id="timerDisplay">00:00</div></div>
+    <div class="divider"></div>
+    <div class="stat-block"><div class="stat-label gold">РЕКОРД</div><div class="stat-value gold" id="recordDisplay">0</div></div>
+</div>
+
+<div class="sound-panel">
+    <div class="sound-row">
+        <div class="sound-selector">
+            <button class="sound-btn" data-sound="blue" title="MX Blue">🔵</button>
+            <button class="sound-btn" data-sound="brown" title="MX Brown">🟤</button>
+            <button class="sound-btn" data-sound="black" title="MX Black">⚫</button>
+            <button class="sound-btn" data-sound="water" title="Water Drop">💧</button>
+            <button class="sound-btn" data-sound="retro" title="Retro 8-bit">🎮</button>
+            <button class="sound-btn active" data-sound="bell" title="Glass Bell">✨</button>
+        </div>
+        <button class="mute-btn" id="muteBtn">🔊</button>
+    </div>
+    <div class="volume-row">
+        <span class="volume-icon">🔈</span>
+        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="70">
+        <span class="volume-value" id="volumeValue">70%</span>
+    </div>
+</div>
+
+<div class="game-board" id="gameBoard"></div>
+<div class="instruction">НАЖИМАЙ И РАССЛАБЛЯЙСЯ</div>
+
+<script>
+    const NEON_COLORS = ['#FF0055','#FF00AA','#AA00FF','#5500FF','#0055FF','#00AAFF','#00FFFF','#00FFAA','#00FF55','#AAFF00','#FFAA00','#FF5500'];
+    const STORAGE = { record: 'rgb-record', sound: 'rgb-sound', muted: 'rgb-muted', volume: 'rgb-volume' };
+    let score = 0, startTime = null, audioCtx = null, isTouchDevice = false, bestRecord = 0;
+    let currentSound = 'bell', isMuted = false, volume = 0.7;
+
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const recordDisplay = document.getElementById('recordDisplay');
+    const gameBoard = document.getElementById('gameBoard');
+    const muteBtn = document.getElementById('muteBtn');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const volumeValue = document.getElementById('volumeValue');
+
+    function loadSaved() {
+        try {
+            bestRecord = parseInt(localStorage.getItem(STORAGE.record)) || 0;
+            const s = localStorage.getItem(STORAGE.sound);
+            if (s && ['blue','brown','black','water','retro','bell'].includes(s)) currentSound = s;
+            isMuted = localStorage.getItem(STORAGE.muted) === 'true';
+            const v = localStorage.getItem(STORAGE.volume);
+            if (v !== null) volume = Math.max(0, Math.min(1, parseInt(v) / 100));
+        } catch(e) {}
+        recordDisplay.textContent = bestRecord;
+        volumeSlider.value = Math.round(volume * 100);
+        volumeValue.textContent = Math.round(volume * 100) + '%';
+        document.querySelectorAll('.sound-btn').forEach(b => b.classList.toggle('active', b.dataset.sound === currentSound));
+        updateMuteBtn();
+    }
+
+    function save(key, value) { try { localStorage.setItem(key, value); } catch(e) {} }
+
+    function saveRecord() {
+        if (score > bestRecord) {
+            bestRecord = score;
+            recordDisplay.textContent = bestRecord;
+            recordDisplay.classList.add('pop');
+            setTimeout(() => recordDisplay.classList.remove('pop'), 400);
+            save(STORAGE.record, bestRecord);
+        }
+    }
+
+    function initAudio() {
+        if (!audioCtx) { try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {} }
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function noiseBuf(dur) {
+        const sr = audioCtx.sampleRate, buf = audioCtx.createBuffer(1, sr * dur, sr);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        return buf;
+    }
+
+    function applyGain(node, base, time, decay) {
+        const g = isMuted ? 0 : base * volume;
+        node.gain.setValueAtTime(g, time);
+        node.gain.exponentialRampToValueAtTime(0.001, time + decay);
+    }
+
+    function playBlue(t) {
+        const n = audioCtx.createBufferSource(); n.buffer = noiseBuf(0.04);
+        const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 3500; f.Q.value = 1.5;
+        const g = audioCtx.createGain(); applyGain(g, 0.25, t, 0.04);
+        n.connect(f); f.connect(g); g.connect(audioCtx.destination); n.start(t); n.stop(t + 0.04);
+        const o = audioCtx.createOscillator(); o.type = 'square'; o.frequency.setValueAtTime(1200, t); o.frequency.exponentialRampToValueAtTime(840, t + 0.03);
+        const g2 = audioCtx.createGain(); applyGain(g2, 0.15, t, 0.03);
+        o.connect(g2); g2.connect(audioCtx.destination); o.start(t); o.stop(t + 0.03);
+    }
+
+    function playBrown(t) {
+        const n = audioCtx.createBufferSource(); n.buffer = noiseBuf(0.035);
+        const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2200;
+        const g = audioCtx.createGain(); applyGain(g, 0.18, t, 0.035);
+        n.connect(f); f.connect(g); g.connect(audioCtx.destination); n.start(t); n.stop(t + 0.035);
+        const o = audioCtx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(490, t + 0.04);
+        const g2 = audioCtx.createGain(); applyGain(g2, 0.10, t, 0.04);
+        o.connect(g2); g2.connect(audioCtx.destination); o.start(t); o.stop(t + 0.04);
+    }
+
+    function playBlack(t) {
+        const n = audioCtx.createBufferSource(); n.buffer = noiseBuf(0.05);
+        const f = audioCtx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1200;
+        const g = audioCtx.createGain(); applyGain(g, 0.22, t, 0.05);
+        n.connect(f); f.connect(g); g.connect(audioCtx.destination); n.start(t); n.stop(t + 0.05);
+        const o = audioCtx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(250, t); o.frequency.exponentialRampToValueAtTime(175, t + 0.06);
+        const g2 = audioCtx.createGain(); applyGain(g2, 0.12, t, 0.06);
+        o.connect(g2); g2.connect(audioCtx.destination); o.start(t); o.stop(t + 0.06);
+        const o2 = audioCtx.createOscillator(); o2.type = 'sine'; o2.frequency.setValueAtTime(120, t); o2.frequency.exponentialRampToValueAtTime(80, t + 0.08);
+        const g3 = audioCtx.createGain(); applyGain(g3, 0.08, t, 0.08);
+        o2.connect(g3); g3.connect(audioCtx.destination); o2.start(t); o2.stop(t + 0.08);
+    }
+
+    function playWater(t) {
+        const o = audioCtx.createOscillator(); o.type = 'sine';
+        o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(400, t + 0.12);
+        const g = audioCtx.createGain(); applyGain(g, 0.35, t, 0.12);
+        o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + 0.12);
+        const o2 = audioCtx.createOscillator(); o2.type = 'sine';
+        o2.frequency.setValueAtTime(1800, t); o2.frequency.exponentialRampToValueAtTime(1200, t + 0.03);
+        const g2 = audioCtx.createGain(); applyGain(g2, 0.15, t, 0.03);
+        o2.connect(g2); g2.connect(audioCtx.destination); o2.start(t); o2.stop(t + 0.03);
+    }
+
+    function playRetro(t) {
+        const o = audioCtx.createOscillator(); o.type = 'square';
+        o.frequency.setValueAtTime(880, t); o.frequency.setValueAtTime(1320, t + 0.03);
+        const g = audioCtx.createGain(); applyGain(g, 0.12, t, 0.08);
+        o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + 0.08);
+        const o2 = audioCtx.createOscillator(); o2.type = 'square';
+        o2.frequency.setValueAtTime(220, t); o2.frequency.setValueAtTime(330, t + 0.03);
+        const g2 = audioCtx.createGain(); applyGain(g2, 0.08, t, 0.08);
+        o2.connect(g2); g2.connect(audioCtx.destination); o2.start(t); o2.stop(t + 0.08);
+    }
+
+    function playBell(t) {
+        [[1400, 0.25, 0.35], [2100, 0.15, 0.25], [2800, 0.08, 0.18]].forEach(([freq, gain, decay]) => {
+            const o = audioCtx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(freq, t);
+            const g = audioCtx.createGain(); applyGain(g, gain, t, decay);
+            o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + decay);
+        });
+    }
+
+    function playKeySound() {
+        if (!audioCtx || isMuted) return;
+        const now = audioCtx.currentTime;
+        ({ blue: playBlue, brown: playBrown, black: playBlack, water: playWater, retro: playRetro, bell: playBell })[currentSound](now);
+    }
+
+    document.querySelectorAll('.sound-btn').forEach(btn => btn.addEventListener('click', e => {
+        e.preventDefault(); initAudio();
+        currentSound = btn.dataset.sound;
+        document.querySelectorAll('.sound-btn').forEach(b => b.classList.toggle('active', b === btn));
+        save(STORAGE.sound, currentSound);
+        setTimeout(() => playKeySound(), 10);
+    }));
+
+    function updateMuteBtn() { muteBtn.textContent = isMuted ? '🔇' : '🔊'; muteBtn.classList.toggle('muted', isMuted); }
+
+    muteBtn.addEventListener('click', e => {
+        e.preventDefault(); initAudio();
+        isMuted = !isMuted; updateMuteBtn(); save(STORAGE.muted, isMuted);
+        if (!isMuted) setTimeout(() => playKeySound(), 10);
+    });
+
+    volumeSlider.addEventListener('input', e => {
+        volume = parseInt(e.target.value) / 100;
+        volumeValue.textContent = e.target.value + '%';
+        save(STORAGE.volume, e.target.value);
+    });
+
+    ['mousedown', 'touchstart'].forEach(evt => volumeSlider.addEventListener(evt, () => {
+        if (isMuted && volume > 0) { isMuted = false; updateMuteBtn(); save(STORAGE.muted, false); }
+    }, { passive: true }));
+
+    function startTimer() {
+        if (startTime !== null) return;
+        startTime = Date.now();
+        setInterval(updateTimer, 1000); updateTimer();
+    }
+
+    function updateTimer() {
+        if (startTime === null) return;
+        const e = Math.floor((Date.now() - startTime) / 1000);
+        timerDisplay.textContent = String(Math.floor(e / 60)).padStart(2,'0') + ':' + String(e % 60).padStart(2,'0');
+    }
+
+    function createBoard() {
+        gameBoard.innerHTML = '';
+        for (let i = 0; i < 12; i++) {
+            const k = document.createElement('div');
+            k.classList.add('keycap');
+            const color = NEON_COLORS[i % NEON_COLORS.length];
+            k.style.setProperty('--key-color', color);
+            const inner = document.createElement('div');
+            inner.classList.add('keycap-inner'); inner.style.borderColor = color;
+            k.appendChild(inner);
+            gameBoard.appendChild(k);
+        }
+    }
+
+    function handleClick(keycap) {
+        if (keycap.classList.contains('active')) return;
+        keycap.classList.add('active');
+        initAudio(); startTimer(); playKeySound();
+        if (navigator.vibrate) try { navigator.vibrate(10); } catch(e) {}
+        score++;
+        scoreDisplay.textContent = score;
+        scoreDisplay.classList.add('pop');
+        setTimeout(() => scoreDisplay.classList.remove('pop'), 100);
+        saveRecord();
+        const rect = keycap.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+        const color = keycap.style.getPropertyValue('--key-color');
+        createFloat(cx, cy, color); createParts(cx, cy, color);
+        setTimeout(() => keycap.classList.remove('active'), 100);
+    }
+
+    gameBoard.addEventListener('touchstart', e => {
+        e.preventDefault(); isTouchDevice = true;
+        for (const t of e.changedTouches) {
+            const el = document.elementFromPoint(t.clientX, t.clientY);
+            if (el && el.classList.contains('keycap')) handleClick(el);
+        }
+    }, { passive: false });
+
+    gameBoard.addEventListener('mousedown', e => {
+        if (isTouchDevice) return;
+        if (e.target.classList.contains('keycap')) handleClick(e.target);
+    });
+
+    document.addEventListener('keydown', e => {
+        if (e.repeat || e.target.tagName === 'INPUT') return;
+        initAudio(); startTimer(); playKeySound();
+        score++;
+        scoreDisplay.textContent = score;
+        scoreDisplay.classList.add('pop');
+        setTimeout(() => scoreDisplay.classList.remove('pop'), 100);
+        saveRecord();
+    });
+
+    function createFloat(x, y, color) {
+        const el = document.createElement('div'); el.classList.add('floating-score'); el.textContent = '+1';
+        el.style.left = x + 'px'; el.style.top = y + 'px'; el.style.setProperty('--key-color', color);
+        el.style.setProperty('--random-x', (Math.random() - 0.5) * 120 + 'px');
+        document.body.appendChild(el); setTimeout(() => el.remove(), 900);
+    }
+
+    function createParts(x, y, color) {
+        for (let i = 0; i < 6; i++) {
+            const p = document.createElement('div'); p.classList.add('particle');
+            p.style.left = x + 'px'; p.style.top = y + 'px'; p.style.setProperty('--key-color', color);
+            const a = (Math.PI * 2 * i) / 6, d = 35 + Math.random() * 45;
+            p.style.setProperty('--x', Math.cos(a) * d + 'px');
+            p.style.setProperty('--y', Math.sin(a) * d + 'px');
+            document.body.appendChild(p); setTimeout(() => p.remove(), 500);
+        }
+    }
+
+    createBoard(); loadSaved();
+    document.addEventListener('gesturestart', e => e.preventDefault());
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    setInterval(() => { if (startTime !== null) updateTimer(); }, 1000);
+</script>
+</body>
+</html>
